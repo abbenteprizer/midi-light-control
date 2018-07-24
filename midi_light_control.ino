@@ -1,6 +1,9 @@
+// Written by Albert Gunneström
+// Code also taken from Notes&Volts
 #include <MIDI.h>  
 #include <Adafruit_NeoPixel.h>
 
+// Try remove this and see if it works
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
@@ -14,16 +17,9 @@ int green = 0;
 int blue = 0;
 int fadetime = 2;
 
-// Button and program change
-const int btn1 = 7;
+// Lighting program change
 int mode = 0;
-
-/*
-// Function prototypes
-void MyHandleNoteOn(byte channel, byte pitch, byte velocity);
-void MyHandleNoteOff(byte channel, byte pitch, byte velocity);
-void fader(int r, int g, int b);
-*/
+const int NUMBEROFMODES = 3;
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -40,10 +36,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(144, STRIP_PIN, NEO_GRB + NEO_KHZ800
 MIDI_CREATE_DEFAULT_INSTANCE();
 
 void setup() {
-  /* Mode setup */
-  pinMode(btn1, INPUT); // Remove this and use midi instead
-  
-  /* MIDI SETUP */
+   /* MIDI SETUP */
   pinMode (LED, OUTPUT); // Set Arduino board pin 13 to output
   MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
   // OMNI sets it to listen to all channels.. MIDI.begin(2) would set it 
@@ -54,60 +47,46 @@ void setup() {
   MIDI.setHandleNoteOff(MyHandleNoteOff); // This command tells the Midi Library 
   // to call "MyHandleNoteOff" when a NOTE OFF command is received.
 
+
+  // ***********NOT YET TESTED *******
+  // Adds possibility for MIDI CC messages
+  MIDI.setHandleControlChange(MyHandleControlChange);
+//*******************
+
+
   /* NEOPIXEL SETUP */
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
   #if defined (__AVR_ATtiny85__)
     if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
   #endif
-  // End of trinket special code
-  
+  // End of trinket special code 
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   
 }
 
 void loop() { // Main loop 
-  MIDI.read();
-  fader(0,0,0);
-
-  // Change this to an interupt instead?
-  if(digitalRead(btn1)){
-    mode++;
-    mode = mode%2; // Modulo number of different modes
-    delay(20);   // No bouncing
-  }
+  MIDI.read(); // Interrupt functions MyHandleNoteOn and MyHandleNoteOff
+  fader(0,0,0); // Continually decreases light
 }
 
 // MyHandleNoteON is the function that will be called by the Midi Library
 // when a MIDI NOTE ON message is received.
 // It will be passed bytes for Channel, Pitch, and Velocity
+// Switch case for different lighting modes
 void MyHandleNoteOn(byte channel, byte pitch, byte velocity) { 
-  //digitalWrite(LED,LOW);  //Turn LED on
-  /*for(int i = velocity; i >= 0; i--){ // For testing purposes
-    digitalWrite(LED, HIGH);
-    delay(100);
-    digitalWrite(LED, LOW);
-    delay(100);
-    }
-  */
   switch(mode){
     case 0:
-      lightConstantIntensity(channel, pitch, velocity);
+      lightAddConst(channel, pitch, velocity);
       break;
     case 1:
-      lightVelocityIntensity(channel, pitch, velocity);
+      lightAddVelocity(channel, pitch, velocity);
       break;
     case 3: 
-      strobe(channel, pitch, velocity);
+      lightStrobe(channel, pitch, velocity);
       break;
-/*    
-      case 4: 
-      lightFromLeft(channel, pitch, velocity);
-      break;
-*/
    default:
    break;
-  
   }
 }
 
@@ -116,9 +95,16 @@ void MyHandleNoteOn(byte channel, byte pitch, byte velocity) {
 // * A NOTE ON message with Velocity = 0 will be treated as a NOTE OFF message *
 // It will be passed bytes for Channel, Pitch, and Velocity
 void MyHandleNoteOff(byte channel, byte pitch, byte velocity) { 
-  //digitalWrite(LED,LOW);  //Turn LED off
+  // Do nothing
 }
 
+void MyHandleControlChange(byte channel, byte cc, byte value){
+  if(cc == 74){ // The cc for fader on Axiom 25??
+    mode = map(value, 0, 127, 0, NUMBEROFMODES);
+  }
+}
+
+// Decreases light by the amount fadetime
 void fader(int r, int g, int b){
   // Makes sure max brightness within range
   red += r; // adds to globla variable
@@ -131,19 +117,20 @@ void fader(int r, int g, int b){
   if(blue > 255) blue = 255;
   if(blue < 0) blue = 0;
 
+// Set all pixels to the same color
   uint32_t c = strip.Color(red, green, blue);
   for(int i = 0; i < strip.numPixels(); i++){
   strip.setPixelColor(i, c);
   }
   strip.show();
 
-  //Fade time
+  // Decrease light by value fadetime
   red -= fadetime; 
   green -= fadetime;
   blue -= fadetime;
 }
 
-void lightConstantIntensity(byte channel, byte pitch, byte velocity){  
+void lightAddConst(byte channel, byte pitch, byte velocity){  
       if(pitch%12 == 0){ // For all notes C
         fader(200,0,0);
         //*g = 200;
@@ -157,7 +144,7 @@ void lightConstantIntensity(byte channel, byte pitch, byte velocity){
       }
 }
 
-void lightVelocityIntensity(byte channel, byte pitch, byte velocity){
+void lightAddVelocity(byte channel, byte pitch, byte velocity){
       if(pitch%12 == 0){
         fader(velocity * 2,0,0);
       }
@@ -177,7 +164,7 @@ void lightVelocityIntensity(byte channel, byte pitch, byte velocity){
 
 
 // Will only work if midi read is an interupt
-void strobe(byte channel, byte pitch, byte velocity){
+void lightStrobe(byte channel, byte pitch, byte velocity){
   fadetime = 200;
   while(true){
     if(pitch ==48) break;
@@ -186,6 +173,7 @@ void strobe(byte channel, byte pitch, byte velocity){
   }
 }
 
+// For testing purposes
 void sameColorFade(uint32_t r, uint32_t g, int32_t b, uint8_t wait) {
   uint32_t c = strip.Color(r,g,b);
   for(uint16_t i = 0; i < strip.numPixels(); i++){
