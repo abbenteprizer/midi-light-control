@@ -19,7 +19,7 @@ int fadetime = 2;
 
 // Lighting program change
 int mode = 0;
-const int NUMBEROFMODES = 3;
+const int NUMBEROFMODES = 2;
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -82,7 +82,7 @@ void MyHandleNoteOn(byte channel, byte pitch, byte velocity) {
     case 1:
       lightAddVelocity(channel, pitch, velocity);
       break;
-    case 3: 
+    case 2: 
       lightStrobe(channel, pitch, velocity);
       break;
    default:
@@ -101,6 +101,9 @@ void MyHandleNoteOff(byte channel, byte pitch, byte velocity) {
 void MyHandleControlChange(byte channel, byte cc, byte value){
   if(cc == 74){ // The cc for fader on Axiom 25??
     mode = map(value, 0, 127, 0, NUMBEROFMODES);
+  }
+  if(cc == 7){ // The cc for fader on Axiom 25??
+    fadetime = map(value, 0, 127, 20, 0);
   }
 }
 
@@ -133,8 +136,6 @@ void fader(int r, int g, int b){
 void lightAddConst(byte channel, byte pitch, byte velocity){  
       if(pitch%12 == 0){ // For all notes C
         fader(200,0,0);
-        //*g = 200;
-        //sameColorFade(255, 0, 0, 1000); // arg1 color, arg2 fadetime
       }
       if(pitch%12 == 2){ // For all notes D 
         fader(0,200,0);
@@ -142,23 +143,56 @@ void lightAddConst(byte channel, byte pitch, byte velocity){
       if(pitch%12 == 4){ // For all notes E
         fader(0,0,200);
       }
+      if(pitch%12 == 6){ // For all notes F# 
+        fader(200,0,160);
+      }
+      if(pitch%12 == 8){ // For all notes G#
+        fader(0,180,200);
+      }
+      if(pitch%12 == 10){ // For all notes A# 
+        fader(200,200,0);
+      }
+      // Following to change the fadetime
+      if(pitch%12 == 5){ // For all notes F 
+        fadetime = 1;
+      }
+      if(pitch%12 == 7){ // For all notes G 
+        fadetime = 5;
+      }
+      if(pitch%12 == 9){ // For all notes A 
+        fadetime = 20;
+      }
 }
 
 void lightAddVelocity(byte channel, byte pitch, byte velocity){
-      if(pitch%12 == 0){
+      if(pitch%12 == 0){ // For all notes C 
         fader(velocity * 2,0,0);
       }
-      if(pitch%12 == 2){
+      if(pitch%12 == 2){ // For all notes D 
         fader(0,velocity * 2,0);
       }
-      if(pitch%12 == 4){
+      if(pitch%12 == 4){ // For all notes E
         fader(0,0,velocity * 2);
       }
-      if(pitch%12 == 5){
+      if(pitch%12 == 6){ // For all notes F# 
+        fader(velocity * 2,0,0);
+      }
+      if(pitch%12 == 8){
+        fader(0,velocity * 2,0); // For all notes G# 
+      }
+      if(pitch%12 == 10){
+        fader(0,0,velocity * 2); // For all notes A#
+      }
+      
+      // Following to change the fadetime
+      if(pitch%12 == 5){ // For all notes F 
         fadetime = 1;
       }
-      if(pitch%12 == 7){
-        fadetime = 40;
+      if(pitch%12 == 7){ // For all notes G 
+        fadetime = 5;
+      }
+      if(pitch%12 == 9){ // For all notes A 
+        fadetime = 20;
       }
 }
 
