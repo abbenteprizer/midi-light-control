@@ -41,7 +41,7 @@ MIDI_CREATE_DEFAULT_INSTANCE();
 
 void setup() {
   /* Mode setup */
-  pinMode(btn1, INPUT);
+  pinMode(btn1, INPUT); // Remove this and use midi instead
   
   /* MIDI SETUP */
   pinMode (LED, OUTPUT); // Set Arduino board pin 13 to output
@@ -69,10 +69,12 @@ void setup() {
 void loop() { // Main loop 
   MIDI.read();
   fader(0,0,0);
+
+  // Change this to an interupt instead?
   if(digitalRead(btn1)){
     mode++;
-    mode = mode%2;
-    delay(20);  
+    mode = mode%2; // Modulo number of different modes
+    delay(20);   // No bouncing
   }
 }
 
@@ -90,38 +92,19 @@ void MyHandleNoteOn(byte channel, byte pitch, byte velocity) {
   */
   switch(mode){
     case 0:
-      if(pitch == 48){
-        fader(200,0,0);
-        //*g = 200;
-        //sameColorFade(255, 0, 0, 1000); // arg1 color, arg2 fadetime
-      }
-      if(pitch == 50){
-        fader(0,200,0);
-      }
-      if(pitch == 52){
-        fader(0,0,200);
-      }
+      lightConstantIntensity(channel, pitch, velocity);
       break;
     case 1:
-      if(pitch == 48){
-        fader(velocity * 2,0,0);
-        //*g = 200;
-        //sameColorFade(255, 0, 0, 1000); // arg1 color, arg2 fadetime
-      }
-      if(pitch == 50){
-        fader(0,velocity * 2,0);
-      }
-      if(pitch == 52){
-        fader(0,0,velocity * 2);
-      }
-      if(pitch == 53){
-        fadetime = 1;
-      }
-      if(pitch == 55){
-        fadetime = 40;
-      }
+      lightVelocityIntensity(channel, pitch, velocity);
       break;
-
+    case 3: 
+      strobe(channel, pitch, velocity);
+      break;
+/*    
+      case 4: 
+      lightFromLeft(channel, pitch, velocity);
+      break;
+*/
    default:
    break;
   
@@ -158,6 +141,49 @@ void fader(int r, int g, int b){
   red -= fadetime; 
   green -= fadetime;
   blue -= fadetime;
+}
+
+void lightConstantIntensity(byte channel, byte pitch, byte velocity){  
+      if(pitch%12 == 0){ // For all notes C
+        fader(200,0,0);
+        //*g = 200;
+        //sameColorFade(255, 0, 0, 1000); // arg1 color, arg2 fadetime
+      }
+      if(pitch%12 == 2){ // For all notes D 
+        fader(0,200,0);
+      }
+      if(pitch%12 == 4){ // For all notes E
+        fader(0,0,200);
+      }
+}
+
+void lightVelocityIntensity(byte channel, byte pitch, byte velocity){
+      if(pitch%12 == 0){
+        fader(velocity * 2,0,0);
+      }
+      if(pitch%12 == 2){
+        fader(0,velocity * 2,0);
+      }
+      if(pitch%12 == 4){
+        fader(0,0,velocity * 2);
+      }
+      if(pitch%12 == 5){
+        fadetime = 1;
+      }
+      if(pitch%12 == 7){
+        fadetime = 40;
+      }
+}
+
+
+// Will only work if midi read is an interupt
+void strobe(byte channel, byte pitch, byte velocity){
+  fadetime = 200;
+  while(true){
+    if(pitch ==48) break;
+    fader(200,200,200);
+    delay(5);
+  }
 }
 
 void sameColorFade(uint32_t r, uint32_t g, int32_t b, uint8_t wait) {
